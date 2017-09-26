@@ -5,8 +5,16 @@ const {app} = require('./../server');
 const {Todo} = require('./../models/todo');
 const {User} = require('./../models/user');
 
+var todos = [{
+    text: 'First element in test'
+}, {
+    text: 'Second element in test'
+}];
+
 beforeEach( (done) => {
-    Todo.remove({}).then( () => done() );
+    Todo.remove({}).then( () => {
+        Todo.insertMany(todos);
+    }).then(() => done())
 });
 
 describe('POST /todos', () => {
@@ -16,7 +24,7 @@ describe('POST /todos', () => {
 
         request(app)
             .post('/todos') //Tutaj wykonujemy post z pliku server.js
-            .send({text: text}) //Tutaj wysyłamy w res 'text'
+            .send({text}) //Tutaj wysyłamy w res 'text'
             .expect(200)
             .expect( (res) => {
                 expect(res.body.text).toBe(text);
@@ -26,8 +34,8 @@ describe('POST /todos', () => {
                     return done(err);
                 }
                 Todo.find().then( (result) => {
-                    expect(result.length).toBe(1);
-                    expect(result[0].text).toBe(text);
+                    expect(result.length).toBe(3);
+                    expect(result[2].text).toBe(text);
                     done();
                 }).catch((e) => done(e));
 
@@ -46,7 +54,7 @@ describe('POST /todos', () => {
                 if (err)
                     return done(err);
                 Todo.find().then((todos) => {
-                    expect(todos.length).toBe(0);
+                    expect(todos.length).toBe(2);
                     done();
                 }).catch((e) => {
                     done(e);
@@ -61,6 +69,7 @@ describe('GET /todos', () => {
     it('Should be OK', (done) => {
         request(app)
             .get('/todos')
+            .send(todos)
             .expect(200)
             .expect((res) => {
                 expect(typeof res.body).toBe('object')
