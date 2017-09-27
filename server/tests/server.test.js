@@ -9,10 +9,13 @@ const {User} = require('./../models/user');
 
 var todos = [{
     _id: new ObjectID(),
-    text: 'First element in test'
+    text: 'First element in test',
+    completed: false
 }, {
     _id: new ObjectID(),
-    text: 'Second element in test'
+    text: 'Second element in test',
+    completed: true,
+    completedAt: 123
 }];
 
 beforeEach( (done) => {
@@ -151,5 +154,25 @@ describe('DELETE /todo/id', () => {
             .delete('/todo/123')
             .expect(404)
             .end(done);
+    });
+});
+
+describe('PATCH /todo/id', () => {
+
+
+    it('Should be updated', (done) => {
+        request(app)
+            .patch(`/todo/${todos[0]._id.toHexString()}`)
+            .send({completed: true, text: "poprawiony"})
+            .expect(200)
+            .expect((res) => {
+                expect(res.body.completed).toBe(true);
+                expect(res.body.text).toBe('poprawiony');
+                done();
+            })
+            .end((err) => {
+                if(err)
+                    done(err);
+            })
     });
 });
