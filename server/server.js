@@ -19,6 +19,8 @@ var {mongoose} = require('./db/mongoose');
 var {Todo} = require('./models/todo');
 var {User} = require('./models/user');
 
+var {autenticate} = require('./middlware/auth');
+
 var PORT = process.env.PORT;
 
 var app = express();
@@ -39,6 +41,10 @@ app.post('/users', (req, res) => {
     }).catch((e) => {
         res.status(400).send(s);
     });
+});
+
+app.get('/user/me', autenticate, (req, res) => {
+    res.send(req.user);
 });
  
 app.post('/todos', (req, res) => {
