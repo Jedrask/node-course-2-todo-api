@@ -1,4 +1,4 @@
-var env = process.env.NODE_ENV  || 'development';
+ var env = process.env.NODE_ENV  || 'development';
 console.log('env ****** ', env);
 
 if (env === 'development') {
@@ -29,20 +29,47 @@ app.use(bodyParser.json());
 
 app.post('/users', (req, res) => {
 
+    // Tutaj wyłuskujemy z tylko informację o EMAIL i PASSWORD
+    // bo tylko to zapisujemy do bazy, resztę tworzymy sami - TOKEN ale potrzebujemy _id
+    //robimy tak na wszelki wypadek jeśli jakiś cwany USER chciał nam przesałać w REQ inne dane
+    //zgodne z strukturą modelu
     var body = _.pick(req.body, ['email', 'password']);
-    
+    // Tworzymy nowy obiekt do zapisania do bazy w oparciu o wcześniej utworzony
+    // (wyzej) obiekt BODY
     var user = new User(body);
 
     user.save().then((user) => {
+        // Pozapisaniu informacji o EMAIL i BODY dostaliśmu od razu _id (zostało utworzone)
+        // Poprzez zdefiniowaną metodę instancyjną w modelu USER generujemy token do autentykacji
+        // który następnie prześlemy w HEADER RESPONS.
+        // poniewaz metoda generateAuthToken zwraca promis, my dalej go zwracamy za pomocą RETURN
         return user.generateAuthToken();
-        // res.send({user});
+    // teraz przesyłamy dalej pozyskany TOKEN
     }).then((token) => {
-        res.header('x-auth', token).send(user);
-    }).catch((e) => {
-        res.status(400).send(s);
+        res.header('x-auth', token).send(user); //dzięki nadpisaniu toJSON w modelu USER wysyłamy tylko
+    }).catch((e) => {                           //email i _id spowrotem.
+        res.status(400).send(e);
     });
 });
 
+app.post('/users/login', (req, res) => {
+    var body = _.pick(req.body, ['email', 'password']);
+
+    User.findByCredentials(body.email, body.password).then((user) => {
+        return user.generateAuthToken().then((token) => {
+            res.header('x-auth', token).send(user);
+        })
+    }).catch((err) => {
+        console.log(err);
+        res.status(400).send();
+    });
+});
+
+
+//korzystamy tutaj z MIDDLWARE w celu sprawdzenia czy w HEADER REQUEST jest informacja o autentykacji
+//czyli 'x-auth' i posiada odpowiednią wartość. MIDDLWARE szuka w kolekcji USER'a 
+//Jeśli znajdzie tak to MIDDLWARE, to przypisuje do REQ znalezionego USER'a i  daje next()
+//jeśli nie to sam wysyła status 401
 app.get('/user/me', autenticate, (req, res) => {
     res.send(req.user);
 });

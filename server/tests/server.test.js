@@ -7,22 +7,10 @@ const {app} = require('./../server');
 const {Todo} = require('./../models/todo');
 const {User} = require('./../models/user');
 
-var todos = [{
-    _id: new ObjectID(),
-    text: 'First element in test',
-    completed: false
-}, {
-    _id: new ObjectID(),
-    text: 'Second element in test',
-    completed: true,
-    completedAt: 123
-}];
+const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
 
-beforeEach( (done) => {
-    Todo.remove({}).then( () => {
-        Todo.insertMany(todos);
-    }).then(() => done())
-});
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
 describe('POST /todos', () => {
 
@@ -174,5 +162,30 @@ describe('PATCH /todo/id', () => {
                 if(err)
                     done(err);
             })
+    });
+});
+
+describe('GET /user/me', () => {
+    it('Should return user if autheticated', (done) => {
+        request(app)
+            .get('/user/me')
+            .set('x-auth', users[0].tokens[0].token)
+            .expect(200)
+            .expect((res) => {
+                expect(res.body._id).toBe(users[0]._id.toHexString());
+                expect(res.body.email).toBe(users[0].email);
+                console.log(res);
+            })
+            .end(done);
+    });
+
+    it('Should return 401 if not authenticated', (done) => {
+        request(app)
+            .get('/user/me')
+            .expect(401)
+            .expect((res) => {
+                expect(res.body).toEqual({});
+            })
+            .end(done);  
     });
 });

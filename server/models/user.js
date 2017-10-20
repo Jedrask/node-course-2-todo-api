@@ -35,6 +35,8 @@ var userSchema = new mongoose.Schema({
     }]
 });
 
+//Metoda instancyjna wywoływana przy kazdym SAVE(), sprawdza czy zmieniło się hasło
+//jeśli tak na nowo je hashuje za pomocą bcrypt
 userSchema.pre('save', function(next) {
     var user = this;
 
@@ -46,10 +48,13 @@ userSchema.pre('save', function(next) {
             next();
         });
     } else {
+        console.log('not modified')
         next();
     }
 });
 
+//metoda statyczna słuząca do zweryfikowania poprawności TOKENA autentykacyjnego
+//i znalezienia dla niego USERa. Wykorzystuje do tego JSONWEBTOKEN
 userSchema.statics.findByToken = function (token) {
 
     var User = this;
@@ -68,26 +73,52 @@ userSchema.statics.findByToken = function (token) {
 
 };
 
+userSchema.statics.findByCredentials = function (email, password) {
+    var User = this;
+    
+    return User.findOne({email}).then((user) => {
+        if (!user) {
+            return Promise.reject('brak usera');
+        };
+        return new Promise((resolve, reject) => {
+            bcrypt.compare(password, user.password, (err, res) => {
+                if (res) {
+                    resolve(user);
+                } else {
+                    reject('bad password');
+                }
+            });
+        });
+
+    })
+};
+
+// jest to nadpisanie funkcji oryginalnej w celu ograniczenia informacji zwracanej do usera
+//za pomocą res.send(user). aby nie zwracać wszystkich informacji z bazy ale tylko te, które trzeba
+//czyli np. bez tokenu autoryzacyjnego
 userSchema.methods.toJSON = function () {
+
     var user = this;
-
     var newUser = user.toObject();
-
     return _.pick(newUser, ['_id', 'email']);
-}
+    
+};
 
+//metoda generująca TOKENA do autentykacji przy zakładaniu USERa
+//do budowy TOKENA wykorzystujemy obiekt z _id oraz rodzajem access'u
+//_id przydaje nam się do wyszukania USERa po tem w bazie
 userSchema.methods.generateAuthToken = function () {
 
     var user = this;
     var access = 'auth';
     var token = jwt.sign({id: user._id.toHexString(), access}, '123abc').toString();
-
+//po wygenerowaniu tokena dodajemy go to tablicy TOKENS i następnie zapisujemy do bazy
     user.tokens.push({access, token});
 
     return user.save().then(() => {
         return token;
-    }, (e) => {
-        console.log(e);
+    }).catch((e) => {
+        console.log('błąd');
     });
 };
 
